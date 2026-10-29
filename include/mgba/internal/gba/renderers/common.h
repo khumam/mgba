@@ -22,6 +22,25 @@ struct GBAVideoRendererSprite {
 
 int GBAVideoRendererCleanOAM(struct GBAObj* oam, struct GBAVideoRendererSprite* sprites, int offsetY);
 
+/**
+ * Like GBAVideoRendererCleanOAM, but also keeps the sprites that are only visible in [wideLeft] / [wideRight]
+ * extra columns beside the GBA's screen. Those cost no sprite cycles: the hardware never drew them.
+ */
+int GBAVideoRendererCleanOAMWide(struct GBAObj* oam, struct GBAVideoRendererSprite* sprites, int offsetY, int wideLeft, int wideRight);
+
+/**
+ * A sprite's 9-bit X as a screen position. Values from 240 up to the right margin's end are positions to the
+ * right of the screen (so sprites parked there show up in the margin), the rest of the upper half wraps to
+ * negative as on the GBA. With no right margin this is exactly the GBA's signed 9-bit value.
+ */
+static inline int GBAVideoRendererObjX(int rawX, int wideRight) {
+	int cutoff = GBA_VIDEO_HORIZONTAL_PIXELS + wideRight;
+	if (cutoff < 256) {
+		cutoff = 256;
+	}
+	return rawX >= cutoff ? rawX - 512 : rawX;
+}
+
 CXX_GUARD_END
 
 #endif

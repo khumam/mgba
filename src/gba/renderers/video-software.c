@@ -103,6 +103,7 @@ void GBAVideoSoftwareRendererSetWideMargins(struct GBAVideoSoftwareRenderer* ren
 	}
 	renderer->wideLeft = left;
 	renderer->wideRight = right;
+	renderer->oamDirty = true;
 	memset(renderer->scanlineDirty, 0xFFFFFFFF, sizeof(renderer->scanlineDirty));
 }
 
@@ -1040,7 +1041,11 @@ int GBAVideoSoftwareRendererPreprocessSpriteLayer(struct GBAVideoSoftwareRendere
 	int spriteLayers = 0;
 	if (GBARegisterDISPCNTIsObjEnable(renderer->dispcnt) && !renderer->d.disableOBJ) {
 		if (renderer->oamDirty) {
-			renderer->oamMax = GBAVideoRendererCleanOAM(renderer->d.oam->obj, renderer->sprites, renderer->objOffsetY);
+			if (renderer->wideLeft || renderer->wideRight) {
+				renderer->oamMax = GBAVideoRendererCleanOAMWide(renderer->d.oam->obj, renderer->sprites, renderer->objOffsetY, renderer->wideLeft, renderer->wideRight);
+			} else {
+				renderer->oamMax = GBAVideoRendererCleanOAM(renderer->d.oam->obj, renderer->sprites, renderer->objOffsetY);
+			}
 			renderer->oamDirty = false;
 		}
 		int mosaicV = GBAMosaicControlGetObjV(renderer->mosaic) + 1;

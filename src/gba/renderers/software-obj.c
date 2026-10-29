@@ -17,7 +17,7 @@
 	SPRITE_YBASE_ ## DEPTH(inY); \
 	unsigned tileData; \
 	for (; outX < condition; ++outX, inX += xOffset) { \
-		int localX = inX - xOffset * (outX % mosaicH); \
+		int localX = inX - xOffset * ((((outX - renderer->wideLeft) % mosaicH) + mosaicH) % mosaicH); \
 		if (localX < 0) { \
 			localX = 0; \
 		} else if (localX > width - 1) {\
@@ -56,7 +56,7 @@
 		xAccum += mat.a; \
 		yAccum += mat.c; \
 		\
-		if (outX % mosaicH == 0) { \
+		if ((((outX - renderer->wideLeft) % mosaicH) + mosaicH) % mosaicH == 0) { \
 			localX = xAccum >> 8; \
 			localY = yAccum >> 8; \
 		} \
@@ -161,9 +161,8 @@ int GBAVideoSoftwareRendererPreprocessSprite(struct GBAVideoSoftwareRenderer* re
 	if ((flags & FLAG_OBJWIN) && (renderer->currentWindow.priority < renderer->objwin.priority || renderer->d.disableOBJWIN)) {
 		return 0;
 	}
-	int32_t x = (uint32_t) GBAObjAttributesBGetX(sprite->b) << 23;
-	x >>= 23;
-	x += renderer->objOffsetX;
+	int32_t x = GBAVideoRendererObjX(GBAObjAttributesBGetX(sprite->b), renderer->wideRight);
+	x += renderer->objOffsetX + renderer->wideLeft; // screen position to the renderer's own column
 	uint16_t* vramBase = &renderer->d.vram[BASE_TILE >> 1];
 	unsigned align = GBAObjAttributesAIs256Color(sprite->a) && !GBARegisterDISPCNTIsObjCharacterMapping(renderer->dispcnt);
 	unsigned charBase = (GBAObjAttributesCGetTile(sprite->c) & ~align) * 0x20;
@@ -233,8 +232,9 @@ int GBAVideoSoftwareRendererPreprocessSprite(struct GBAVideoSoftwareRenderer* re
 		int mosaicH = 1;
 		if (GBAObjAttributesAIsMosaic(sprite->a)) {
 			mosaicH = GBAMosaicControlGetObjH(renderer->mosaic) + 1;
-			if (condition != end && condition % mosaicH) {
-				condition += mosaicH - (condition % mosaicH);
+			int overshoot = (((condition - renderer->wideLeft) % mosaicH) + mosaicH) % mosaicH;
+			if (condition != end && overshoot) {
+				condition += mosaicH - overshoot;
 			}
 		}
 
@@ -320,8 +320,9 @@ int GBAVideoSoftwareRendererPreprocessSprite(struct GBAVideoSoftwareRenderer* re
 		int mosaicH = 1;
 		if (GBAObjAttributesAIsMosaic(sprite->a)) {
 			mosaicH = GBAMosaicControlGetObjH(renderer->mosaic) + 1;
-			if (condition % mosaicH) {
-				condition += mosaicH - (condition % mosaicH);
+			int overshoot = (((condition - renderer->wideLeft) % mosaicH) + mosaicH) % mosaicH;
+			if (overshoot) {
+				condition += mosaicH - overshoot;
 			}
 		}
 		if ((int) GBAObjAttributesAGetY(sprite->a) + height - 256 >= 0) {
