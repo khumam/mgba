@@ -136,6 +136,33 @@ static inline void _compositeNoBlendNoObjwin(struct GBAVideoSoftwareRenderer* re
 		_composite ## BLEND ## NoObjwin(renderer, &pixel[IDX], color | flags, current); \
 	}
 
+typedef void (*GBAVideoSoftwareBackgroundDraw)(struct GBAVideoSoftwareRenderer*, struct GBAVideoSoftwareBackground*, int);
+
+/**
+ * Draws [renderer]->start..end with [draw]. With wide margins the margins and the GBA's own 240 columns are
+ * drawn as separate spans, so the picture on the GBA's columns starts from the same state as without margins
+ * whatever the margins hold (the mosaic, for one, carries a block from one column to the next).
+ */
+static inline void GBAVideoSoftwareRendererDrawSegments(struct GBAVideoSoftwareRenderer* renderer, struct GBAVideoSoftwareBackground* background, int y, GBAVideoSoftwareBackgroundDraw draw) {
+	if (!renderer->wideLeft && !renderer->wideRight) {
+		draw(renderer, background, y);
+		return;
+	}
+	int start = renderer->start;
+	int end = renderer->end;
+	int cuts[4] = { 0, renderer->wideLeft, renderer->wideLeft + GBA_VIDEO_HORIZONTAL_PIXELS, GBAVideoSoftwareRendererWidth(renderer) };
+	int i;
+	for (i = 0; i < 3; ++i) {
+		renderer->start = start > cuts[i] ? start : cuts[i];
+		renderer->end = end < cuts[i + 1] ? end : cuts[i + 1];
+		if (renderer->start < renderer->end) {
+			draw(renderer, background, y);
+		}
+	}
+	renderer->start = start;
+	renderer->end = end;
+}
+
 // True while drawing only the columns beyond the GBA's own 240 (GBADuo's wide margins). Stock mGBA behaviour
 // stays exactly as it is on the GBA's columns; the margins fix a few of its edge-case quirks.
 #define WIDE_MARGIN_SEGMENT(RENDERER) \
@@ -176,8 +203,9 @@ static inline void _compositeNoBlendNoObjwin(struct GBAVideoSoftwareRenderer* re
 	}
 
 #define BACKGROUND_BITMAP_INIT                                                                                        \
-	int32_t x = background->sx + (renderer->start - 1) * background->dx;                                              \
-	int32_t y = background->sy + (renderer->start - 1) * background->dy;                                              \
+	int gbaStart = renderer->start - renderer->wideLeft; /* GBA x of the first column drawn; negative in the left margin */ \
+	int32_t x = background->sx + (gbaStart - 1) * background->dx;                                                     \
+	int32_t y = background->sy + (gbaStart - 1) * background->dy;                                                     \
 	int mosaicH = 0;                                                                                                  \
 	int mosaicWait = 0;                                                                                               \
 	int32_t localX;                                                                                                   \
@@ -185,8 +213,8 @@ static inline void _compositeNoBlendNoObjwin(struct GBAVideoSoftwareRenderer* re
 	if (background->mosaic) {                                                                                         \
 		int mosaicV = GBAMosaicControlGetBgV(renderer->mosaic) + 1;                                                   \
 		mosaicH = GBAMosaicControlGetBgH(renderer->mosaic) + 1;                                                       \
-		mosaicWait = (mosaicH - (renderer->start - renderer->wideLeft) + GBA_VIDEO_HORIZONTAL_PIXELS * mosaicH) % mosaicH;                   \
-		int32_t startX = renderer->start - (renderer->start % mosaicH);                                               \
+		mosaicWait = (mosaicH - gbaStart + GBA_VIDEO_HORIZONTAL_PIXELS * mosaicH) % mosaicH;                               \
+		int32_t startX = gbaStart - (((gbaStart % mosaicH) + mosaicH) % mosaicH);                                     \
 		--mosaicH;                                                                                                    \
 		localX = -(inY % mosaicV) * background->dmx;                                                                  \
 		localY = -(inY % mosaicV) * background->dmy;                                                                  \

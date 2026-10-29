@@ -583,23 +583,5 @@ static void _drawBackgroundMode0(struct GBAVideoSoftwareRenderer* renderer, stru
 }
 
 void GBAVideoSoftwareRendererDrawBackgroundMode0(struct GBAVideoSoftwareRenderer* renderer, struct GBAVideoSoftwareBackground* background, int y) {
-	if (!renderer->wideLeft && !renderer->wideRight) {
-		_drawBackgroundMode0(renderer, background, y);
-		return;
-	}
-	// Margins and the GBA's own columns are drawn separately, so the picture on the GBA's columns starts
-	// from the same state as without margins, whatever the margins hold.
-	int start = renderer->start;
-	int end = renderer->end;
-	int cuts[4] = { 0, renderer->wideLeft, renderer->wideLeft + GBA_VIDEO_HORIZONTAL_PIXELS, GBAVideoSoftwareRendererWidth(renderer) };
-	int i;
-	for (i = 0; i < 3; ++i) {
-		renderer->start = start > cuts[i] ? start : cuts[i];
-		renderer->end = end < cuts[i + 1] ? end : cuts[i + 1];
-		if (renderer->start < renderer->end) {
-			_drawBackgroundMode0(renderer, background, y);
-		}
-	}
-	renderer->start = start;
-	renderer->end = end;
+	GBAVideoSoftwareRendererDrawSegments(renderer, background, y, _drawBackgroundMode0);
 }

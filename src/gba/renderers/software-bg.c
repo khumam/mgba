@@ -76,7 +76,7 @@
 		} \
 	}
 
-void GBAVideoSoftwareRendererDrawBackgroundMode2(struct GBAVideoSoftwareRenderer* renderer, struct GBAVideoSoftwareBackground* background, int inY) {
+static void _drawBackgroundMode2(struct GBAVideoSoftwareRenderer* renderer, struct GBAVideoSoftwareBackground* background, int inY) {
 	int sizeAdjusted = 0x8000 << background->size;
 
 	BACKGROUND_BITMAP_INIT;
@@ -104,7 +104,7 @@ void GBAVideoSoftwareRendererDrawBackgroundMode2(struct GBAVideoSoftwareRenderer
 	}
 }
 
-void GBAVideoSoftwareRendererDrawBackgroundMode3(struct GBAVideoSoftwareRenderer* renderer, struct GBAVideoSoftwareBackground* background, int inY) {
+static void _drawBackgroundMode3(struct GBAVideoSoftwareRenderer* renderer, struct GBAVideoSoftwareBackground* background, int inY) {
 	BACKGROUND_BITMAP_INIT;
 
 	uint32_t color = renderer->normalPalette[0];
@@ -143,7 +143,7 @@ void GBAVideoSoftwareRendererDrawBackgroundMode3(struct GBAVideoSoftwareRenderer
 	}
 }
 
-void GBAVideoSoftwareRendererDrawBackgroundMode4(struct GBAVideoSoftwareRenderer* renderer, struct GBAVideoSoftwareBackground* background, int inY) {
+static void _drawBackgroundMode4(struct GBAVideoSoftwareRenderer* renderer, struct GBAVideoSoftwareBackground* background, int inY) {
 	BACKGROUND_BITMAP_INIT;
 
 	uint16_t color = 0;
@@ -184,7 +184,7 @@ void GBAVideoSoftwareRendererDrawBackgroundMode4(struct GBAVideoSoftwareRenderer
 	}
 }
 
-void GBAVideoSoftwareRendererDrawBackgroundMode5(struct GBAVideoSoftwareRenderer* renderer, struct GBAVideoSoftwareBackground* background, int inY) {
+static void _drawBackgroundMode5(struct GBAVideoSoftwareRenderer* renderer, struct GBAVideoSoftwareBackground* background, int inY) {
 	BACKGROUND_BITMAP_INIT;
 
 	uint32_t color = renderer->normalPalette[0];
@@ -225,4 +225,20 @@ void GBAVideoSoftwareRendererDrawBackgroundMode5(struct GBAVideoSoftwareRenderer
 			}
 		}
 	}
+}
+
+void GBAVideoSoftwareRendererDrawBackgroundMode2(struct GBAVideoSoftwareRenderer* renderer, struct GBAVideoSoftwareBackground* background, int inY) {
+	GBAVideoSoftwareRendererDrawSegments(renderer, background, inY, _drawBackgroundMode2);
+}
+
+void GBAVideoSoftwareRendererDrawBackgroundMode3(struct GBAVideoSoftwareRenderer* renderer, struct GBAVideoSoftwareBackground* background, int inY) {
+	GBAVideoSoftwareRendererDrawSegments(renderer, background, inY, _drawBackgroundMode3);
+}
+
+void GBAVideoSoftwareRendererDrawBackgroundMode4(struct GBAVideoSoftwareRenderer* renderer, struct GBAVideoSoftwareBackground* background, int inY) {
+	GBAVideoSoftwareRendererDrawSegments(renderer, background, inY, _drawBackgroundMode4);
+}
+
+void GBAVideoSoftwareRendererDrawBackgroundMode5(struct GBAVideoSoftwareRenderer* renderer, struct GBAVideoSoftwareBackground* background, int inY) {
+	GBAVideoSoftwareRendererDrawSegments(renderer, background, inY, _drawBackgroundMode5);
 }
