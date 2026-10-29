@@ -17,6 +17,8 @@ CXX_GUARD_START
 
 enum {
 	GBA_VIDEO_HORIZONTAL_PIXELS = 240,
+	GBA_VIDEO_WIDE_MAX_MARGIN = 72, // columns each side of the picture the software renderer can add (GBADuo)
+	GBA_VIDEO_WIDE_MAX_PIXELS = 240 + 2 * 72,
 	GBA_VIDEO_VERTICAL_PIXELS = 160,
 };
 

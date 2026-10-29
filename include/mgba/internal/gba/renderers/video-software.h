@@ -75,7 +75,7 @@ struct WindowControl {
 #define MAX_WINDOW 5
 
 struct Window {
-	uint8_t endX;
+	uint16_t endX;
 	struct WindowControl control;
 };
 
@@ -89,8 +89,12 @@ struct GBAVideoSoftwareRenderer {
 
 	GBARegisterDISPCNT dispcnt;
 
-	uint32_t row[GBA_VIDEO_HORIZONTAL_PIXELS];
-	uint32_t spriteLayer[GBA_VIDEO_HORIZONTAL_PIXELS];
+	// Columns drawn beyond the GBA's 240, on each side (GBADuo). Internal column c is GBA x = c - wideLeft.
+	int wideLeft;
+	int wideRight;
+
+	uint32_t row[GBA_VIDEO_WIDE_MAX_PIXELS];
+	uint32_t spriteLayer[GBA_VIDEO_WIDE_MAX_PIXELS];
 	int32_t spriteCyclesRemaining;
 
 	// BLDCNT
@@ -154,6 +158,14 @@ struct GBAVideoSoftwareRenderer {
 };
 
 void GBAVideoSoftwareRendererCreate(struct GBAVideoSoftwareRenderer* renderer);
+
+/** Width of a drawn row: the GBA's 240 plus both margins. */
+static inline int GBAVideoSoftwareRendererWidth(const struct GBAVideoSoftwareRenderer* renderer) {
+	return GBA_VIDEO_HORIZONTAL_PIXELS + renderer->wideLeft + renderer->wideRight;
+}
+
+/** Draws [left] and [right] extra columns (each 0..GBA_VIDEO_WIDE_MAX_MARGIN) beyond the GBA screen. 0, 0 is stock mGBA. */
+void GBAVideoSoftwareRendererSetWideMargins(struct GBAVideoSoftwareRenderer* renderer, int left, int right);
 
 CXX_GUARD_START
 
