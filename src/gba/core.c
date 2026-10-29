@@ -516,6 +516,10 @@ static void _GBACoreCurrentVideoSize(const struct mCore* core, unsigned* width, 
 #endif
 
 	*width = GBA_VIDEO_HORIZONTAL_PIXELS * scale;
+#ifndef BUILD_GLES3
+	const struct GBACore* wideCore = (const struct GBACore*) core;
+	*width += wideCore->renderer.wideLeft + wideCore->renderer.wideRight;
+#endif
 	*height = GBA_VIDEO_VERTICAL_PIXELS * scale;
 }
 
@@ -535,6 +539,11 @@ static size_t _GBACoreScreenRegions(const struct mCore* core, const struct mCore
 	UNUSED(core);
 	*regions = _GBAScreenRegions;
 	return 1;
+}
+
+void GBACoreSetWideMargins(struct mCore* core, int left, int right) {
+	struct GBACore* gbacore = (struct GBACore*) core;
+	GBAVideoSoftwareRendererSetWideMargins(&gbacore->renderer, left, right);
 }
 
 static void _GBACoreSetVideoBuffer(struct mCore* core, mColor* buffer, size_t stride) {

@@ -12,6 +12,12 @@ CXX_GUARD_START
 
 struct mCore;
 struct mCore* GBACoreCreate(void);
+
+/**
+ * Draws [left] and [right] extra columns (each 0..72) beside the GBA's 240 (GBADuo). Call between frames, then
+ * give the core a video buffer for desiredVideoDimensions again. 0, 0 is stock mGBA.
+ */
+void GBACoreSetWideMargins(struct mCore* core, int left, int right);
 #ifndef MINIMAL_CORE
 struct mCore* GBAVideoLogPlayerCreate(void);
 #endif

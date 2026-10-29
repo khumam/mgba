@@ -89,6 +89,8 @@ void GBAVideoSoftwareRendererCreate(struct GBAVideoSoftwareRenderer* renderer) {
 	renderer->d.highlightAmount = 0;
 
 	renderer->temporaryBuffer = NULL;
+	renderer->wideLeft = 0;
+	renderer->wideRight = 0;
 }
 
 void GBAVideoSoftwareRendererSetWideMargins(struct GBAVideoSoftwareRenderer* renderer, int left, int right) {
@@ -805,7 +807,7 @@ static void GBAVideoSoftwareRendererFinishFrame(struct GBAVideoRenderer* rendere
 static void GBAVideoSoftwareRendererGetPixels(struct GBAVideoRenderer* renderer, size_t* stride, const void** pixels) {
 	struct GBAVideoSoftwareRenderer* softwareRenderer = (struct GBAVideoSoftwareRenderer*) renderer;
 	*stride = softwareRenderer->outputBufferStride;
-	*pixels = softwareRenderer->outputBuffer;
+	*pixels = softwareRenderer->outputBuffer + softwareRenderer->wideLeft; // save states and screenshots are the GBA's 240 columns
 }
 
 static void GBAVideoSoftwareRendererPutPixels(struct GBAVideoRenderer* renderer, size_t stride, const void* pixels) {
@@ -814,7 +816,7 @@ static void GBAVideoSoftwareRendererPutPixels(struct GBAVideoRenderer* renderer,
 	const mColor* colorPixels = pixels;
 	unsigned i;
 	for (i = 0; i < GBA_VIDEO_VERTICAL_PIXELS; ++i) {
-		memmove(&softwareRenderer->outputBuffer[softwareRenderer->outputBufferStride * i], &colorPixels[stride * i], GBAVideoSoftwareRendererWidth(softwareRenderer) * BYTES_PER_PIXEL);
+		memmove(&softwareRenderer->outputBuffer[softwareRenderer->outputBufferStride * i + softwareRenderer->wideLeft], &colorPixels[stride * i], GBA_VIDEO_HORIZONTAL_PIXELS * BYTES_PER_PIXEL);
 	}
 }
 
