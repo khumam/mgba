@@ -136,6 +136,11 @@ static inline void _compositeNoBlendNoObjwin(struct GBAVideoSoftwareRenderer* re
 		_composite ## BLEND ## NoObjwin(renderer, &pixel[IDX], color | flags, current); \
 	}
 
+// True while drawing only the columns beyond the GBA's own 240 (GBADuo's wide margins). Stock mGBA behaviour
+// stays exactly as it is on the GBA's columns; the margins fix a few of its edge-case quirks.
+#define WIDE_MARGIN_SEGMENT(RENDERER) \
+	((RENDERER)->end <= (RENDERER)->wideLeft || (RENDERER)->start >= (RENDERER)->wideLeft + GBA_VIDEO_HORIZONTAL_PIXELS)
+
 #define BACKGROUND_DRAW_PIXEL_16(BLEND, OBJWIN, IDX) \
 	pixelData = tileData & 0xF; \
 	current = pixel[IDX]; \
@@ -180,7 +185,7 @@ static inline void _compositeNoBlendNoObjwin(struct GBAVideoSoftwareRenderer* re
 	if (background->mosaic) {                                                                                         \
 		int mosaicV = GBAMosaicControlGetBgV(renderer->mosaic) + 1;                                                   \
 		mosaicH = GBAMosaicControlGetBgH(renderer->mosaic) + 1;                                                       \
-		mosaicWait = (mosaicH - renderer->start + GBA_VIDEO_HORIZONTAL_PIXELS * mosaicH) % mosaicH;                   \
+		mosaicWait = (mosaicH - (renderer->start - renderer->wideLeft) + GBA_VIDEO_HORIZONTAL_PIXELS * mosaicH) % mosaicH;                   \
 		int32_t startX = renderer->start - (renderer->start % mosaicH);                                               \
 		--mosaicH;                                                                                                    \
 		localX = -(inY % mosaicV) * background->dmx;                                                                  \

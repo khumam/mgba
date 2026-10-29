@@ -19,6 +19,9 @@
 	paletteData = GBA_TEXT_MAP_PALETTE(mapData) << 4; \
 	charBase = (background->charBase + (GBA_TEXT_MAP_TILE(mapData) << 5)) + (localY << 2); \
 	LOAD_32(tileData, charBase, vram); \
+	if (UNLIKELY(charBase >= 0x10000) && WIDE_MARGIN_SEGMENT(renderer)) { \
+		tileData = 0; /* no tile there: the full-tile path skips it too */ \
+	} \
 	if (!GBA_TEXT_MAP_HFLIP(mapData)) { \
 		tileData >>= 4 * mod8; \
 		for (; outX < end; ++outX, ++pixel) { \
@@ -34,6 +37,9 @@
 #define DRAW_BACKGROUND_MODE_0_TILE_PREFIX_16(BLEND, OBJWIN) \
 	charBase = (background->charBase + (GBA_TEXT_MAP_TILE(mapData) << 5)) + (localY << 2); \
 	LOAD_32(tileData, charBase, vram); \
+	if (UNLIKELY(charBase >= 0x10000) && WIDE_MARGIN_SEGMENT(renderer)) { \
+		tileData = 0; \
+	} \
 	paletteData = GBA_TEXT_MAP_PALETTE(mapData) << 4; \
 	pixel = &renderer->row[outX]; \
 	if (!GBA_TEXT_MAP_HFLIP(mapData)) { \
@@ -68,7 +74,7 @@
 	if (mosaicWait) { \
 		int baseX = x - (mosaicH - mosaicWait); \
 		if (baseX < 0) { \
-			int disturbX = (16 + baseX) >> 3; \
+			int disturbX = WIDE_MARGIN_SEGMENT(renderer) ? (7 - baseX) >> 3 /* whole tiles back to where the mosaic block starts */ : (16 + baseX) >> 3; \
 			inX -= disturbX << 3; \
 			localX = tileX * 8 + inX; \
 			BACKGROUND_TEXT_SELECT_CHARACTER; \
@@ -76,7 +82,7 @@
 			if (GBA_TEXT_MAP_VFLIP(mapData)) { \
 				localY = 7 - localY; \
 			} \
-			baseX -= disturbX << 3; \
+			baseX += WIDE_MARGIN_SEGMENT(renderer) ? disturbX << 3 : -(disturbX << 3); \
 			inX += disturbX << 3; \
 		} else { \
 			localX = tileX * 8 + inX; \
@@ -322,7 +328,7 @@
 	if (mosaicWait) { \
 		int baseX = x - (mosaicH - mosaicWait); \
 		if (baseX < 0) { \
-			int disturbX = (16 + baseX) >> 3; \
+			int disturbX = WIDE_MARGIN_SEGMENT(renderer) ? (7 - baseX) >> 3 /* whole tiles back to where the mosaic block starts */ : (16 + baseX) >> 3; \
 			inX -= disturbX << 3; \
 			localX = tileX * 8 + inX; \
 			BACKGROUND_TEXT_SELECT_CHARACTER; \
@@ -330,7 +336,7 @@
 			if (GBA_TEXT_MAP_VFLIP(mapData)) { \
 				localY = 7 - localY; \
 			} \
-			baseX -= disturbX << 3; \
+			baseX += WIDE_MARGIN_SEGMENT(renderer) ? disturbX << 3 : -(disturbX << 3); \
 			inX += disturbX << 3; \
 		} else { \
 			localX = tileX * 8 + inX; \
@@ -340,26 +346,27 @@
 				localY = 7 - localY; \
 			} \
 		} \
+		int fetchX = WIDE_MARGIN_SEGMENT(renderer) ? baseX : x; /* stock reads the block's pixel at the wrong offset */ \
 		charBase = (background->charBase + (GBA_TEXT_MAP_TILE(mapData) << 6)) + (localY << 3); \
 		if (UNLIKELY(charBase >= 0x10000)) { \
 			carryData = 0; \
 		} else { \
 			LOAD_32(tileData, charBase, vram); \
 			if (!GBA_TEXT_MAP_HFLIP(mapData)) { \
-				if (x >= 4) { \
+				if (fetchX >= 4) { \
 					LOAD_32(tileData, charBase + 4, vram); \
-					tileData >>= (x - 4) * 8; \
+					tileData >>= (fetchX - 4) * 8; \
 				} else { \
 					LOAD_32(tileData, charBase, vram); \
-					tileData >>= x * 8; \
+					tileData >>= fetchX * 8; \
 				} \
 			} else { \
-				if (x >= 4) { \
+				if (fetchX >= 4) { \
 					LOAD_32(tileData, charBase, vram); \
-					tileData >>= (7 - x) * 8; \
+					tileData >>= (7 - fetchX) * 8; \
 				} else { \
 					LOAD_32(tileData, charBase + 4, vram); \
-					tileData >>= (3 - x) * 8; \
+					tileData >>= (3 - fetchX) * 8; \
 				} \
 			} \
 			tileData &= 0xFF; \
@@ -416,7 +423,7 @@
 	if (background->mosaic && GBAMosaicControlGetBgH(renderer->mosaic)) { \
 		int mosaicH = GBAMosaicControlGetBgH(renderer->mosaic) + 1; \
 		int x; \
-		int mosaicWait = (mosaicH - outX + GBA_VIDEO_HORIZONTAL_PIXELS * mosaicH) % mosaicH; \
+		int mosaicWait = (mosaicH - (outX - renderer->wideLeft) + GBA_VIDEO_HORIZONTAL_PIXELS * mosaicH) % mosaicH; \
 		int carryData = 0; \
 		paletteData = 0; /* Quiets compiler warning */ \
 		DRAW_BACKGROUND_MODE_0_MOSAIC_ ## BPP (BLEND, OBJWIN) \
@@ -455,7 +462,7 @@
 	/*! TODO: Make sure these lines can be removed */ \
 	/*!*/ pixel = &renderer->row[outX]; \
 	outX += (tileEnd - tileX) * 8; \
-	/*!*/ if (VIDEO_CHECKS &&  UNLIKELY(outX > GBA_VIDEO_HORIZONTAL_PIXELS)) { \
+	/*!*/ if (VIDEO_CHECKS &&  UNLIKELY(outX > GBAVideoSoftwareRendererWidth(renderer))) { \
 	/*!*/	mLOG(GBA_VIDEO, FATAL, "Out of bounds background draw would occur!"); \
 	/*!*/	return; \
 	/*!*/ } \
@@ -478,13 +485,13 @@
 	if (VIDEO_CHECKS && UNLIKELY(&renderer->row[outX] != pixel)) { \
 		mLOG(GBA_VIDEO, FATAL, "Background draw ended in the wrong place! Diff: %" PRIXPTR, &renderer->row[outX] - pixel); \
 	} \
-	if (VIDEO_CHECKS && UNLIKELY(outX > GBA_VIDEO_HORIZONTAL_PIXELS)) { \
+	if (VIDEO_CHECKS && UNLIKELY(outX > GBAVideoSoftwareRendererWidth(renderer))) { \
 		mLOG(GBA_VIDEO, FATAL, "Out of bounds background draw occurred!"); \
 		return; \
 	}
 
-void GBAVideoSoftwareRendererDrawBackgroundMode0(struct GBAVideoSoftwareRenderer* renderer, struct GBAVideoSoftwareBackground* background, int y) {
-	int inX = (renderer->start + background->x - background->offsetX) & 0x1FF;
+static void _drawBackgroundMode0(struct GBAVideoSoftwareRenderer* renderer, struct GBAVideoSoftwareBackground* background, int y) {
+	int inX = (renderer->start - renderer->wideLeft + background->x - background->offsetX) & 0x1FF;
 	int length = renderer->end - renderer->start;
 	if (background->mosaic) {
 		int mosaicV = GBAMosaicControlGetBgV(renderer->mosaic) + 1;
@@ -573,4 +580,26 @@ void GBAVideoSoftwareRendererDrawBackgroundMode0(struct GBAVideoSoftwareRenderer
 			}
 		}
 	}
+}
+
+void GBAVideoSoftwareRendererDrawBackgroundMode0(struct GBAVideoSoftwareRenderer* renderer, struct GBAVideoSoftwareBackground* background, int y) {
+	if (!renderer->wideLeft && !renderer->wideRight) {
+		_drawBackgroundMode0(renderer, background, y);
+		return;
+	}
+	// Margins and the GBA's own columns are drawn separately, so the picture on the GBA's columns starts
+	// from the same state as without margins, whatever the margins hold.
+	int start = renderer->start;
+	int end = renderer->end;
+	int cuts[4] = { 0, renderer->wideLeft, renderer->wideLeft + GBA_VIDEO_HORIZONTAL_PIXELS, GBAVideoSoftwareRendererWidth(renderer) };
+	int i;
+	for (i = 0; i < 3; ++i) {
+		renderer->start = start > cuts[i] ? start : cuts[i];
+		renderer->end = end < cuts[i + 1] ? end : cuts[i + 1];
+		if (renderer->start < renderer->end) {
+			_drawBackgroundMode0(renderer, background, y);
+		}
+	}
+	renderer->start = start;
+	renderer->end = end;
 }
